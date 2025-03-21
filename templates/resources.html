@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Resource Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>📦 Resource Management</h1>
+    
+    <!-- Resource Overview -->
+    <div class="row mb-4">
+        {% for resource, quantity in resources.items() %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ resource }}</h5>
+                    <h2 class="card-text">{{ quantity }}</h2>
+                    {% if quantity < 100 %}
+                    <div class="alert alert-warning mt-2">
+                        Low inventory alert!
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Resource Request Form -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Request Resources</h5>
+            <form id="resourceRequestForm">
+                <div class="mb-3">
+                    <label for="resourceType" class="form-label">Resource Type</label>
+                    <select class="form-select" id="resourceType" name="resourceType" required>
+                        {% for resource in resources.keys() %}
+                        <option value="{{ resource }}">{{ resource }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="quantity" class="form-label">Quantity</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                </div>
+                <div class="mb-3">
+                    <label for="location" class="form-label">Delivery Location</label>
+                    <input type="text" class="form-control" id="location" name="location" required>
+                </div>
+                <div class="mb-3">
+                    <label for="priority" class="form-label">Priority</label>
+                    <select class="form-select" id="priority" name="priority" required>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Request</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

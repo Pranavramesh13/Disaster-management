@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Disaster Management System - Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 text-center mb-4">
+        <h1>🚨 Disaster Management & ML Analysis Dashboard</h1>
+        <p class="lead">A machine learning-powered platform for enhanced emergency response</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">📊 ML Predictions</h5>
+                <p class="card-text">Access advanced machine learning predictions for disaster risk assessment.</p>
+                <a href="/predictions" class="btn btn-primary">View Predictions</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">🚨 Alert System</h5>
+                <p class="card-text">Manage and monitor emergency alerts and evacuation tracking.</p>
+                <a href="/alerts" class="btn btn-danger">Manage Alerts</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">📦 Resource Management</h5>
+                <p class="card-text">Track and optimize emergency resource allocation.</p>
+                <a href="/resources" class="btn btn-success">Manage Resources</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">🗺️ Interactive Map</h5>
+                <p class="card-text">View real-time disaster zones and resource locations.</p>
+                <a href="/maps" class="btn btn-info">Open Map</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

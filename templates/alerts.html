@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Alert System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>🚨 Alert System</h1>
+
+    <!-- Create Alert Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Create Emergency Alert</h5>
+            <form id="createAlertForm">
+                <div class="mb-3">
+                    <label for="message" class="form-label">Alert Message</label>
+                    <input type="text" class="form-control" id="message" name="message" required>
+                </div>
+                <div class="mb-3">
+                    <label for="location" class="form-label">Location</label>
+                    <select class="form-select" id="location" name="location" required>
+                        <option value="Mumbai">Mumbai</option>
+                        <option value="Chennai">Chennai</option>
+                        <option value="Kolkata">Kolkata</option>
+                        <option value="Delhi">Delhi</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="severity" class="form-label">Severity</label>
+                    <select class="form-select" id="severity" name="severity" required>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="phoneNumbersSection" style="display: none;">
+                    <label for="phoneNumbers" class="form-label">Phone Numbers (one per line)</label>
+                    <small class="form-text text-muted d-block">Enter phone numbers in international format (e.g., +1234567890)</small>
+                    <textarea class="form-control" id="phoneNumbers" name="phoneNumbers" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-danger">Create Alert</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Active Alerts with Evacuation Status -->
+    <h2>Active Alerts</h2>
+    <div id="activeAlerts">
+        {% for alert in alerts %}
+        <div class="alert alert-{{ alert.severity|lower }} alert-dismissible fade show" role="alert">
+            <strong>{{ alert.severity }} Alert:</strong> {{ alert.message }}
+            <br>
+            <small>Location: {{ alert.location }} | Time: {{ alert.timestamp }}</small>
+
+            {% if alert.confirmation_stats %}
+            <div class="mt-3 border-top pt-3">
+                <h6>📊 Response Status:</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h3 class="card-title">{{ alert.confirmation_stats.total_sent }}</h3>
+                                <p class="card-text">Total Notified</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card {% if alert.confirmation_stats.confirmed > 0 %}bg-success text-white{% else %}bg-light{% endif %}">
+                            <div class="card-body">
+                                <h3 class="card-title">{{ alert.confirmation_stats.confirmed }}</h3>
+                                <p class="card-text">Confirmed Safe</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card {% if alert.confirmation_stats.pending > 0 %}bg-warning{% else %}bg-light{% endif %}">
+                            <div class="card-body">
+                                <h3 class="card-title">{{ alert.confirmation_stats.pending }}</h3>
+                                <p class="card-text">Awaiting Response</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if alert.confirmation_stats.pending > 0 %}
+                <div class="alert alert-warning mt-3">
+                    <strong>⚠️ {{ alert.confirmation_stats.pending }} people haven't confirmed safety</strong>
+                    <p class="mb-0">Resources needed for follow-up:</p>
+                    <ul class="mb-0">
+                        <li>Emergency Response Teams: {{ (alert.confirmation_stats.pending / 10)|round|int + 1 }}</li>
+                        <li>Rescue Vehicles: {{ (alert.confirmation_stats.pending / 20)|round|int + 1 }}</li>
+                        <li>Medical Units: {{ (alert.confirmation_stats.pending / 30)|round|int + 1 }}</li>
+                    </ul>
+                </div>
+                {% else %}
+                <div class="alert alert-success mt-3">
+                    <strong>✅ All contacted people have confirmed safety</strong>
+                </div>
+                {% endif %}
+
+                <div class="progress mt-3" style="height: 25px;">
+                    {% set confirmed_percent = (alert.confirmation_stats.confirmed / alert.confirmation_stats.total_sent * 100)|round %}
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: {{ confirmed_percent }}%" 
+                         aria-valuenow="{{ confirmed_percent }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        {{ confirmed_percent }}% Confirmed Safe
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Simulate Confirmation Button -->
+            <div class="mt-3">
+                <button onclick="simulateConfirmation('{{ alert.id }}')" class="btn btn-outline-success btn-sm">
+                    Simulate Response
+                </button>
+            </div>
+
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% else %}
+        <p class="text-muted">No active alerts</p>
+        {% endfor %}
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">📊 Overall Response Statistics</h5>
+
+            {% set total_alerted = namespace(val=0) %}
+            {% set total_confirmed = namespace(val=0) %}
+            {% set total_pending = namespace(val=0) %}
+
+            {% for alert in alerts %}
+                {% if alert.confirmation_stats %}
+                    {% set total_alerted.val = total_alerted.val + alert.confirmation_stats.total_sent %}
+                    {% set total_confirmed.val = total_confirmed.val + alert.confirmation_stats.confirmed %}
+                    {% set total_pending.val = total_pending.val + alert.confirmation_stats.pending %}
+                {% endif %}
+            {% endfor %}
+
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <h3>{{ total_alerted.val }}</h3>
+                        <p>Total People Notified</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <h3>{{ total_confirmed.val }}</h3>
+                        <p>Total Confirmed Safe</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card">
+                        <h3>{{ total_pending.val }}</h3>
+                        <p>Total Awaiting Response</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide phone numbers section based on severity
+    const severitySelect = document.getElementById('severity');
+    const phoneNumbersSection = document.getElementById('phoneNumbersSection');
+
+    severitySelect.addEventListener('change', function() {
+        phoneNumbersSection.style.display = this.value === 'High' ? 'block' : 'none';
+    });
+
+    // Handle form submission
+    const alertForm = document.getElementById('createAlertForm');
+    if (alertForm) {
+        alertForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(alertForm);
+            const alertData = {
+                message: formData.get('message'),
+                location: formData.get('location'),
+                severity: formData.get('severity')
+            };
+
+            // Add phone numbers if severity is high
+            if (formData.get('severity') === 'High') {
+                const phoneNumbers = formData.get('phoneNumbers')
+                    .split('\n')
+                    .map(num => num.trim())
+                    .filter(num => num);
+                alertData.phoneNumbers = phoneNumbers;
+            }
+
+            try {
+                const response = await fetch('/api/create-alert', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(alertData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showNotification('Alert created successfully!', 'success');
+                    // Reload the page to show new alert
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showNotification('Failed to create alert', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('An error occurred', 'error');
+            }
+        });
+    }
+});
+
+async function simulateConfirmation(alertId) {
+    try {
+        const response = await fetch('/api/confirm-safe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                alert_id: alertId,
+                phone_number: '+919742342120' // Simulate confirmation from first number
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showNotification('Simulated responses received!', 'success');
+            // Reload the page to show updated statistics
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Failed to simulate responses', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('An error occurred', 'error');
+    }
+}
+
+function showNotification(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+}
+</script>
+{% endblock %}

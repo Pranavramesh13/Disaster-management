@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}ML Predictions{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>📊 ML-Based Disaster Predictions</h1>
+
+    <!-- Simulation Status Display -->
+    <div id="simulationStatus" class="alert alert-info" style="display: none;">
+        <h5>📱 SMS Simulation Status</h5>
+        <div id="simulationLog"></div>
+    </div>
+
+    <!-- Data Upload Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Train Model with Data</h5>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="dataFile" class="form-label">Upload Training Data (CSV)</label>
+                    <input type="file" class="form-control" id="dataFile" name="file" accept=".csv" required>
+                    <small class="text-muted">
+                        Required columns: rainfall, temperature, seismic_activity, wind_speed, disaster_type
+                    </small>
+                </div>
+                <button type="submit" class="btn btn-primary">Train Model</button>
+            </form>
+            <div id="trainingStatus" class="alert alert-info mt-3" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Prediction Form -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Input Parameters</h5>
+                    <form id="predictionForm">
+                        <div class="mb-3">
+                            <label for="rainfall" class="form-label">Rainfall (mm)</label>
+                            <input type="number" class="form-control" id="rainfall" name="rainfall" step="0.1" min="0" max="500" required>
+                            <small class="text-muted">High rainfall (>300mm) indicates flood risk</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="temperature" class="form-label">Temperature (°C)</label>
+                            <input type="number" class="form-control" id="temperature" name="temperature" step="0.1" min="-20" max="50" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="seismic" class="form-label">Seismic Activity (Richter)</label>
+                            <input type="number" class="form-control" id="seismic" name="seismic_activity" step="0.1" min="0" max="10" required>
+                            <small class="text-muted">High seismic activity (>7) indicates earthquake risk</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="wind" class="form-label">Wind Speed (m/s)</label>
+                            <input type="number" class="form-control" id="wind" name="wind_speed" step="0.1" min="0" max="100" required>
+                            <small class="text-muted">High wind speed (>80 m/s) indicates cyclone risk</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Location</label>
+                            <select class="form-select" id="location" name="location" required>
+                                <option value="Mumbai">Mumbai</option>
+                                <option value="Chennai">Chennai</option>
+                                <option value="Kolkata">Kolkata</option>
+                                <option value="Delhi">Delhi</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Make Prediction</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Prediction Results</h5>
+                    <div id="predictionResults" style="display: none;">
+                        <div id="predictionChart"></div>
+                        <div id="alertsSection" class="mt-3"></div>
+                    </div>
+                    <div id="loadingSpinner" style="display: none;">
+                        <div class="d-flex justify-content-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Model Training
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const statusDiv = document.getElementById('trainingStatus');
+    statusDiv.style.display = 'block';
+    statusDiv.textContent = 'Training model...';
+
+    try {
+        const response = await fetch('/api/train', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            statusDiv.className = 'alert alert-success mt-3';
+            statusDiv.innerHTML = `
+                Model trained successfully!<br>
+                Training Accuracy: ${(result.metrics.train_accuracy * 100).toFixed(1)}%<br>
+                Test Accuracy: ${(result.metrics.test_accuracy * 100).toFixed(1)}%
+            `;
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        statusDiv.className = 'alert alert-danger mt-3';
+        statusDiv.textContent = `Error training model: ${error.message}`;
+    }
+});
+
+// Prediction Form
+document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    // Show loading spinner
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('predictionResults').style.display = 'none';
+    document.getElementById('errorMessage').style.display = 'none';
+    document.getElementById('simulationStatus').style.display = 'none';
+
+    // Get form data
+    const formData = new FormData(this);
+    const data = {
+        rainfall: parseFloat(formData.get('rainfall')),
+        temperature: parseFloat(formData.get('temperature')),
+        seismic_activity: parseFloat(formData.get('seismic_activity')),
+        wind_speed: parseFloat(formData.get('wind_speed')),
+        location: formData.get('location')
+    };
+
+    try {
+        const response = await fetch('/api/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to make prediction');
+        }
+
+        // Hide loading spinner
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('predictionResults').style.display = 'block';
+
+        // Create prediction chart
+        const predictions = result.predictions;
+        const trace = {
+            x: Object.keys(predictions),
+            y: Object.values(predictions),
+            type: 'bar',
+            marker: {
+                color: Object.values(predictions).map(v =>
+                    v > 0.7 ? 'rgba(255, 0, 0, 0.8)' :
+                    v > 0.4 ? 'rgba(255, 165, 0, 0.8)' :
+                    'rgba(0, 128, 0, 0.8)'
+                )
+            }
+        };
+
+        const layout = {
+            title: 'Disaster Risk Probabilities',
+            yaxis: {
+                title: 'Probability',
+                range: [0, 1]
+            },
+            margin: { t: 30, b: 40, l: 60, r: 10 }
+        };
+
+        Plotly.newPlot('predictionChart', [trace], layout);
+
+        // Display alerts and simulation status
+        const alertsSection = document.getElementById('alertsSection');
+        const simulationStatus = document.getElementById('simulationStatus');
+        const simulationLog = document.getElementById('simulationLog');
+
+        if (result.alerts_info && result.alerts_info.length > 0) {
+            // Show alerts
+            const alertsHtml = result.alerts_info.map(alert => `
+                <div class="alert alert-danger">
+                    <strong>🚨 High Risk Alert!</strong><br>
+                    ${alert.message}<br>
+                    <small>Alert will be sent to ${alert.recipients} recipients in ${alert.location}</small>
+                </div>
+            `).join('');
+            alertsSection.innerHTML = alertsHtml;
+
+            // Show simulation status
+            simulationStatus.style.display = 'block';
+            simulationLog.innerHTML = `
+                <p>📱 Simulated SMS Alerts (via Globfone):</p>
+                <ul class="list-group">
+                    <li class="list-group-item">
+                        ✉️ Message to +919742342120 - Message ID: ${result.message_ids?.[0] || 'GLOB_SIMULATED'}
+                    </li>
+                    <li class="list-group-item">
+                        ✉️ Message to +916362171135 - Message ID: ${result.message_ids?.[1] || 'GLOB_SIMULATED'}
+                    </li>
+                </ul>
+                <p class="mt-2"><small>Note: This is a simulation. In production, messages would be sent via Globfone API.</small></p>
+            `;
+        } else {
+            alertsSection.innerHTML = '<div class="alert alert-info">No high-risk conditions detected</div>';
+            simulationStatus.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('errorMessage').textContent = error.message;
+        document.getElementById('errorMessage').style.display = 'block';
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

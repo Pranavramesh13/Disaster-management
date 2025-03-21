@@ -1,0 +1,50 @@
+/* Custom styles for disaster management system */
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #f5f5f5;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.alert {
+    border-left: 4px solid;
+    margin-bottom: 1rem;
+}
+
+.alert-high {
+    border-left-color: #dc3545;
+    background-color: #fff5f5;
+}
+
+.alert-medium {
+    border-left-color: #ffc107;
+    background-color: #fffbf0;
+}
+
+.alert-low {
+    border-left-color: #28a745;
+    background-color: #f0fff4;
+}
+
+.metric-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+}
+
+.resource-tracker {
+    border: 1px solid #e9ecef;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}

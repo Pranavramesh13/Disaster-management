@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Interactive Map{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+#map {
+    height: 70vh;
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.map-controls {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.resource-popup {
+    max-width: 250px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1>🗺️ Interactive Disaster Management Map</h1>
+
+    <div class="row mb-4">
+        <!-- Map Controls -->
+        <div class="col-md-3">
+            <div class="card map-controls">
+                <div class="card-body">
+                    <h5 class="card-title">Map Controls</h5>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="showDisasters" checked>
+                        <label class="form-check-label" for="showDisasters">
+                            Show Disaster Zones
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="showResources" checked>
+                        <label class="form-check-label" for="showResources">
+                            Show Resource Locations
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="showEvacuation" checked>
+                        <label class="form-check-label" for="showEvacuation">
+                            Show Evacuation Routes
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="col-md-9">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Map Legend -->
+    <div class="card mt-3">
+        <div class="card-body">
+            <h5 class="card-title">Map Legend</h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <p><span class="badge bg-danger">⬤</span> High-risk disaster zones</p>
+                    <p><span class="badge bg-warning">⬤</span> Medium-risk disaster zones</p>
+                </div>
+                <div class="col-md-3">
+                    <p><span class="badge bg-success">⬤</span> Low-risk disaster zones</p>
+                    <p><span class="badge bg-primary">📍</span> Resource locations</p>
+                </div>
+                <div class="col-md-3">
+                    <p><span class="badge bg-info">➡️</span> Evacuation routes</p>
+                    <p><span class="badge bg-secondary">🏥</span> Relief camps</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+// Initialize map centered on India
+const map = L.map('map').setView([20.5937, 78.9629], 5);
+
+// Add OpenStreetMap tiles
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 18
+}).addTo(map);
+
+// Define city coordinates
+const cities = {
+    'Mumbai': [19.0760, 72.8777],
+    'Delhi': [28.6139, 77.2090],
+    'Chennai': [13.0827, 80.2707],
+    'Kolkata': [22.5726, 88.3639]
+};
+
+// Mock resource data
+const resources = {
+    'Mumbai': {
+        'Emergency Vehicles': 25,
+        'Medical Supplies': 1000,
+        'Food Supplies': 5000,
+        'Relief Camps': 5
+    },
+    'Delhi': {
+        'Emergency Vehicles': 30,
+        'Medical Supplies': 1200,
+        'Food Supplies': 6000,
+        'Relief Camps': 6
+    },
+    'Chennai': {
+        'Emergency Vehicles': 20,
+        'Medical Supplies': 800,
+        'Food Supplies': 4000,
+        'Relief Camps': 4
+    },
+    'Kolkata': {
+        'Emergency Vehicles': 22,
+        'Medical Supplies': 900,
+        'Food Supplies': 4500,
+        'Relief Camps': 5
+    }
+};
+
+// Layer groups for different features
+const disasterLayer = L.layerGroup().addTo(map);
+const resourceLayer = L.layerGroup().addTo(map);
+const evacuationLayer = L.layerGroup().addTo(map);
+
+// Add disaster zones
+Object.entries(cities).forEach(([city, coords]) => {
+    const risk = Math.random(); // Simulate risk level
+    const color = risk > 0.7 ? 'red' : risk > 0.4 ? 'orange' : 'green';
+    const radius = 50000; // 50km radius
+
+    L.circle(coords, {
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.2,
+        radius: radius
+    }).addTo(disasterLayer);
+});
+
+// Add resource markers
+Object.entries(cities).forEach(([city, coords]) => {
+    const cityResources = resources[city];
+    let resourceInfo = '<div class="resource-popup"><h6>' + city + ' Resources</h6>';
+    for (const [resource, quantity] of Object.entries(cityResources)) {
+        resourceInfo += `<strong>${resource}:</strong> ${quantity}<br>`;
+    }
+    resourceInfo += '</div>';
+
+    L.marker(coords, {
+        icon: L.divIcon({
+            className: 'resource-marker',
+            html: '📍',
+            iconSize: [25, 25],
+            iconAnchor: [12, 24],
+            popupAnchor: [0, -24]
+        })
+    })
+    .bindPopup(resourceInfo)
+    .addTo(resourceLayer);
+});
+
+// Add evacuation routes
+Object.entries(cities).forEach(([cityName, startCoords]) => {
+    // Create evacuation safe point 50km east of each city
+    const endCoords = [startCoords[0], startCoords[1] + 0.5];
+
+    // Add safe point marker
+    L.marker(endCoords, {
+        icon: L.divIcon({
+            className: 'safe-point-marker',
+            html: '🏥',
+            iconSize: [25, 25],
+            iconAnchor: [12, 24],
+            popupAnchor: [0, -24]
+        })
+    })
+    .bindPopup(`<b>Safe Zone - ${cityName}</b><br>Relief Camp Capacity: 1000`)
+    .addTo(evacuationLayer);
+
+    // Add evacuation route
+    L.polyline([startCoords, endCoords], {
+        color: '#3388ff',
+        weight: 3,
+        opacity: 0.8,
+        dashArray: '10, 10'
+    })
+    .bindPopup(`<b>Evacuation Route - ${cityName}</b><br>Distance: ~50km`)
+    .addTo(evacuationLayer);
+});
+
+// Toggle layers based on checkboxes
+document.getElementById('showDisasters').addEventListener('change', function(e) {
+    if (e.target.checked) {
+        map.addLayer(disasterLayer);
+    } else {
+        map.removeLayer(disasterLayer);
+    }
+});
+
+document.getElementById('showResources').addEventListener('change', function(e) {
+    if (e.target.checked) {
+        map.addLayer(resourceLayer);
+    } else {
+        map.removeLayer(resourceLayer);
+    }
+});
+
+document.getElementById('showEvacuation').addEventListener('change', function(e) {
+    if (e.target.checked) {
+        map.addLayer(evacuationLayer);
+    } else {
+        map.removeLayer(evacuationLayer);
+    }
+});
+
+// Ensure map fills container
+map.invalidateSize();
+</script>
+{% endblock %}

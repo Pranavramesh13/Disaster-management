@@ -1,0 +1,140 @@
+import logging
+from flask import Flask, render_template, request, jsonify
+from datetime import datetime
+import json
+import os
+from utils.data_generator import generate_resource_data, generate_alert_data
+from utils.ml_predictor import DisasterPredictor
+from utils.sms_handler import SMSHandler
+import pandas as pd
+import uuid
+from twilio.rest import Client
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(_name_)
+
+# Create necessary directories
+os.makedirs('data', exist_ok=True)
+os.makedirs('models', exist_ok=True)
+os.makedirs('templates/errors', exist_ok=True)
+
+# Initialize Flask app
+app = Flask(_name_)
+app.secret_key = os.urandom(24)
+
+# Initialize predictor
+try:
+    logger.info("Initializing DisasterPredictor...")
+    predictor = DisasterPredictor()
+    if predictor.model is None:
+        logger.info("No existing model found. Generating and training with sample data...")
+        X, y = predictor.generate_sample_data()
+        predictor.train(X, y)
+    logger.info("DisasterPredictor initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize DisasterPredictor: {str(e)}", exc_info=True)
+    predictor = None
+
+# Initialize SMS handler
+try:
+    logger.info("Initializing SMSHandler...")
+    sms_handler = SMSHandler()
+    logger.info("SMSHandler initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize SMSHandler: {str(e)}", exc_info=True)
+    sms_handler = None
+
+class SessionData:
+    def _init_(self):
+        self.alerts = []
+        self.resources = generate_resource_data()
+        self.evacuation_data = {}
+
+session_data = SessionData()
+
+@app.route('/api/create-alert', methods=['POST'])
+def create_alert():
+    try:
+        data = request.json
+        logger.info(f"Received alert creation request with data: {data}")
+
+        alert = {
+            'id': str(uuid.uuid4()),
+            'message': data.get('message'),
+            'location': data.get('location'),
+            'severity': data.get('severity'),
+            'timestamp': str(datetime.now()),
+            'disaster_type': data.get('disaster_type', 'Unknown'),
+            'probability': data.get('probability', 0.0)
+        }
+        session_data.alerts.append(alert)
+
+        if data.get('severity') == 'High' and data.get('phoneNumbers'):
+            if not sms_handler:
+                logger.error("SMS handler not initialized")
+                raise ValueError("SMS functionality not available")
+
+            for phone_number in data['phoneNumbers']:
+                try:
+                    logger.info(f"Sending SMS alert to {phone_number}...")
+                    message_sid = sms_handler.send_alert(
+                        to_number=phone_number,
+                        message=f"EMERGENCY ALERT: {data['message']} in {data['location']}",
+                        alert_id=alert['id']
+                    )
+                    if message_sid:
+                        logger.info(f"SMS sent to {phone_number}, SID: {message_sid}")
+                    else:
+                        logger.error(f"Failed to send SMS to {phone_number}")
+                except Exception as e:
+                    logger.error(f"Failed to send SMS to {phone_number}: {str(e)}", exc_info=True)
+
+        return jsonify({'success': True, 'alert': alert}), 201
+    except Exception as e:
+        logger.error(f"Error in create-alert route: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+# Updated SMSHandler with detailed logging
+class SMSHandler:
+    def _init_(self):
+        try:
+            self.account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+            self.auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+            self.from_number = os.getenv("TWILIO_PHONE_NUMBER")
+            if not self.account_sid or not self.auth_token or not self.from_number:
+                raise ValueError("Twilio credentials missing")
+            self.client = Client(self.account_sid, self.auth_token)
+            logger.info("Twilio client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Twilio client: {str(e)}", exc_info=True)
+            raise
+
+    def send_alert(self, to_number, message, alert_id):
+        try:
+            logger.info(f"Attempting to send SMS to {to_number} with alert ID {alert_id}")
+            response = self.client.messages.create(
+                body=message,
+                from_=self.from_number,
+                to=to_number
+            )
+            logger.info(f"SMS successfully sent. Message SID: {response.sid}")
+            return response.sid
+        except Exception as e:
+            logger.error(f"Twilio SMS failed for {to_number}: {str(e)}", exc_info=True)
+            return None
+
+if _name_ == '_main_':
+    try:
+        logger.info("Starting Flask application...")
+        app.run(host='127.0.0.1', port=5000, debug=True)
+    except Exception as e:
+        logger.error(f"Failed to start Flask application: {str(e)}", exc_info=True)
+        raise

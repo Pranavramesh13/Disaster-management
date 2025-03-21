@@ -1,0 +1,80 @@
+/* Custom CSS for disaster management system */
+.stApp {
+    font-family: 'Inter', 'Roboto', sans-serif;
+}
+
+/* Mobile Optimization */
+@media screen and (max-width: 768px) {
+    .stApp {
+        padding: 10px;
+    }
+    
+    .disaster-alert {
+        padding: 1rem;
+        margin: 12px 0;
+    }
+
+    .metric-card {
+        padding: 16px;
+        margin: 8px 0;
+    }
+
+    /* Streamlit specific mobile optimizations */
+    .st-emotion-cache-16idsys e1nzilvr5 {
+        flex-wrap: wrap;
+    }
+
+    .st-bw {
+        min-width: 100%;
+    }
+}
+
+/* Improve touch targets */
+button, 
+select, 
+input[type="number"],
+.stSelectbox {
+    min-height: 44px;
+    font-size: 16px !important;
+}
+
+/* Improve readability on mobile */
+.stMarkdown p,
+.stMarkdown li {
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.disaster-alert {
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin: 24px 0;
+}
+
+.alert-high {
+    background-color: #D32F2F;
+    color: white;
+}
+
+.alert-medium {
+    background-color: #FFC107;
+    color: #212121;
+}
+
+.alert-low {
+    background-color: #388E3C;
+    color: white;
+}
+
+.metric-card {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.resource-tracker {
+    border: 1px solid #1976D2;
+    padding: 16px;
+    border-radius: 4px;
+}
